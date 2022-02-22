@@ -47,9 +47,21 @@ app.use(express.json()); // => allows us to access to the req.body
     app.post("/newCourse", async(req, res) => {
         try {
             const { courseID, courseName, facultyID, term, courseSubject } = req.body;
-            console.log(req.body);
             const newCourse = await pool.query("INSERT INTO Course (courseID, courseName, facultyID, term, courseSubject) VALUES ($1, $2, $3, $4, $5) RETURNING *", 
             [courseID, courseName, facultyID, term, courseSubject]);
+
+            res.json(newCourse.rows[0]);
+        } catch (err) {
+            console.error(err.message);
+        }
+    })
+
+    //create a student course (enroll a student in a course)
+    app.post("/newStudentCourse", async(req, res) => {
+        try {
+            const { studentID, courseID, term } = req.body;
+            const newCourse = await pool.query("INSERT INTO studentCourse (studentID, courseID, term) VALUES ($1, $2, $3) RETURNING *", 
+            [studentID, courseID, term]);
 
             res.json(newCourse.rows[0]);
         } catch (err) {
@@ -141,19 +153,41 @@ app.use(express.json()); // => allows us to access to the req.body
         }
     })
 
-
-    //get a course
-    app.get("/:term/:courseID"), async(req, res) => {
+    //get 3 most recent  of a student's grades
+    app.get("/recentGrades/:studentID", async(req, res) => {
         try {
-            const { term, courseID } = req.params;
-            const course = await pool.query("SELECT * FROM Course WHERE term = $1 AND courseID = $2", [term, courseID]);
+            const { studentID } = req.params;
+            const recentGrades = await pool.query("SELECT * FROM Grade g INNER JOIN Assignment a ON g.assignmentID = a.assignmentID WHERE studentid = $1", [studentID]);
 
-            res.json(course.rows);
+            res.json(recentGrades.rows);
         } catch (err) {
             console.error(err.message);
         }
-    }
+    })
 
+    //get all of a student's grades from a course
+    app.get("Grades/:studentID/:courseID", async(req, res) => {
+        try {
+            const { studentID, courseID } = req.params;
+            const studentCourseGrades = await pool.query("SELECT * FROM Grade WHERE studentID = $1 AND courseID = $2", [studentID, courseID]);
+
+            res.json(studentCourseGrades.rows);
+        } catch (err) {
+            console.error(err.message);
+        }
+    })
+
+    //get a student's assignments and grades for a course
+    app.get("/Grades/:courseID/:studentID", async(req,res) => {
+        try {
+            const { courseID, studentID } = req.params;
+            const courseAssignmentsGrades = await pool.query("SELECT * FROM Grade g INNER JOIN Assignment a ON g.assignmentID = a.assignmentID WHERE courseid = $1 AND studentID = $2", [courseID, studentID]);
+
+            res.json(courseAssignmentsGrades.rows);
+        } catch (err) {
+            console.error(err.message);
+        }
+    })
 
     //get a courses assignment's
      app.get("/Assignments/:courseID", async(req, res) => {
@@ -180,33 +214,25 @@ app.use(express.json()); // => allows us to access to the req.body
         }
     })
 
+    
 
-    //get all of a student's grades
-    app.get("/Grades/:studentID"), async(req, res) => {
+    
+
+    //get a grade for a student's assignment attempt
+    app.get("/grade/:studentID/:assignmentID", async(req, res) => {
         try {
-            const { studentID } = req.params;
-            const studentGrades = await pool.query("SELECT * FROM Grade WHERE studentID = $1", [studentID]);
+            const { studentID, assignmentID } = req.params;
+            const grade = await pool.query("SELECT * FROM Grade WHERE studentID = $1 AND assignmentID = $2", [studentID, assignmentID]);
 
-            res.json(studentCourses.rows);
+            res.json(grade.rows[0]);
         } catch (err) {
             console.error(err.message);
         }
-    }
+    })
 
-    //get all of a student's grades from a course
-    app.get("Grades/:studentID/:courseID"), async(req, res) => {
-        try {
-            const { studentID, courseID } = req.params;
-            const studentCourseGrades = await pool.query("SELECT * FROM Grade WHERE studentID = $1 AND courseID = $2", [studentID, courseID]);
-
-            res.json(studentCourses.rows);
-        } catch (err) {
-            console.error(err.message);
-        }
-    }
 
     //get all students' grades for a course
-    app.get("/:term/:courseID/grades"), async(req,res) => {
+    app.get("/:courseID/grades", async(req,res) => {
         
         try {
             const { term, courseID } = req.params;
@@ -217,17 +243,7 @@ app.use(express.json()); // => allows us to access to the req.body
             console.error(err.message);
         }
         
-    }
-
-//UPDATE
-
-    //
-
-
-//DELETE
-
-    //
-
+    })
 
 app.listen(5000, () => {
     console.log("server is starting on port 5000");
